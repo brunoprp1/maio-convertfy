@@ -1,0 +1,113 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isAdmin() {
+      return isAuthenticated() && 
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    function isClientOwner(clientId) {
+      return isAuthenticated() && 
+        get(/databases/$(database)/documents/clients/$(clientId)).data.userId == request.auth.uid;
+    }
+    
+    // Users collection
+    match /users/{userId} {
+      allow read: if isAuthenticated() && (isAdmin() || isOwner(userId));
+      allow create: if isAuthenticated() && isAdmin();
+      allow update: if isAuthenticated() && (isAdmin() || isOwner(userId));
+      allow delete: if isAdmin();
+    }
+    
+    // Clients collection
+    match /clients/{clientId} {
+      allow read: if isAuthenticated() && (isAdmin() || isClientOwner(clientId));
+      allow write: if isAuthenticated() && isAdmin();
+    }
+    
+    // Subscriptions collection
+    match /subscriptions/{subscriptionId} {
+      allow read: if isAuthenticated() && (
+        isAdmin() || 
+        resource.data.clientId in get(/databases/$(database)/documents/clients).data.userId
+      );
+      allow write: if isAdmin();
+    }
+    
+    // Commissions collection
+    match /commissions/{commissionId} {
+      allow read: if isAuthenticated() && (
+        isAdmin() || 
+        resource.data.clientId in get(/databases/$(database)/documents/clients).data.userId
+      );
+      allow write: if isAdmin();
+    }
+    
+    // Revenues collection
+    match /revenues/{revenueId} {
+      allow read: if isAuthenticated() && (
+        isAdmin() || 
+        resource.data.clientId in get(/databases/$(database)/documents/clients).data.userId
+      );
+      allow write: if isAdmin();
+    }
+    
+    // Campaigns collection
+    match /campaigns/{campaignId} {
+      allow read: if isAuthenticated() && (
+        isAdmin() || 
+        resource.data.clientId in get(/databases/$(database)/documents/clients).data.userId
+      );
+      allow write: if isAuthenticated() && (
+        isAdmin() || 
+        resource.data.clientId in get(/databases/$(database)/documents/clients).data.userId
+      );
+    }
+    
+    // Activities collection
+    match /activities/{activityId} {
+      allow read: if isAuthenticated() && (
+        isAdmin() || 
+        resource.data.userId == request.auth.uid ||
+        resource.data.clientId in get(/databases/$(database)/documents/clients).data.userId
+      );
+      allow create: if isAuthenticated();
+      allow update, delete: if isAdmin();
+    }
+    
+    // Financial goals collection
+    match /financial_goals/{goalId} {
+      allow read, write: if isAdmin();
+    }
+    
+    // Integrations collection
+    match /integrations/{integrationId} {
+      allow read: if isAuthenticated() && (
+        isAdmin() || 
+        resource.data.clientId in get(/databases/$(database)/documents/clients).data.userId
+      );
+      allow write: if isAdmin();
+    }
+    
+    // Notifications collection
+    match /notifications/{notificationId} {
+      allow read: if isAuthenticated() && (
+        isAdmin() || 
+        resource.data.userId == request.auth.uid ||
+        resource.data.clientId in get(/databases/$(database)/documents/clients).data.userId
+      );
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow delete: if isAdmin();
+    }
+  }
+}

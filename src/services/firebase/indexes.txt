@@ -1,0 +1,35 @@
+// Collection: users
+email, role, status ASCENDING
+createdAt DESCENDING
+
+// Collection: clients
+userId, subscriptionStatus ASCENDING
+contractEndDate ASCENDING
+createdAt DESCENDING
+
+// Collection: subscriptions
+clientId, status ASCENDING
+dueDate ASCENDING
+createdAt DESCENDING
+
+// Collection: commissions
+clientId, status ASCENDING
+dueDate ASCENDING
+referenceYear, referenceMonth DESCENDING
+
+// Collection: revenues
+clientId ASCENDING
+referenceYear, referenceMonth DESCENDING
+
+// Collection: campaigns
+clientId, status ASCENDING
+startDate DESCENDING
+
+// Collection: activities
+userId, type ASCENDING
+clientId ASCENDING
+createdAt DESCENDING
+
+// Collection: notifications
+userId, status ASCENDING
+createdAt DESCENDING
