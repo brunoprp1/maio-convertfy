@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import StatCard from '../../components/ui/StatCard';
 import Card from '../../components/ui/Card';
 import RevenueChart from '../../components/charts/RevenueChart';
 import DistributionChart from '../../components/charts/DistributionChart';
 import TimeFilter from '../../components/ui/TimeFilter';
 import { dashboardData } from '../../data/mockData';
+import { getAsaasFinancialMetrics, AsaasFinancialData } from '../../services/api/asaas';
 import { 
   DollarSign, 
   TrendingUp, 
@@ -16,20 +17,60 @@ import {
   XCircle,
   AlertOctagon,
   MessageSquare,
-  ShoppingCart
+  ShoppingCart,
+  Settings
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import Avatar from '../../components/ui/Avatar';
 import Badge from '../../components/ui/Badge';
+import Button from '../../components/ui/Button';
 
 const AdminDashboard: React.FC = () => {
   const [timeFilter, setTimeFilter] = useState('30days');
   const [contractType, setContractType] = useState('all');
+  const [asaasData, setAsaasData] = useState<AsaasFinancialData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const data = dashboardData.adminDashboard;
+
+  useEffect(() => {
+    fetchAsaasData();
+  }, [timeFilter]);
+
+  const fetchAsaasData = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const financialData = await getAsaasFinancialMetrics();
+      setAsaasData(financialData);
+    } catch (err) {
+      console.error('Error fetching Asaas data:', err);
+      if (err instanceof Error && err.message.includes('configure')) {
+        setError('Integração com Asaas não configurada. Configure suas credenciais nas configurações.');
+      } else {
+        setError('Erro ao carregar dados do Asaas. Por favor, tente novamente mais tarde.');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Calcular valores baseados nos dados da Asaas
+  // Receita Total: valor a receber (pendingAmount + receivedAmount)
+  // Receita Líquida: valor já recebido (receivedAmount)
+  const totalRevenue = asaasData ? (asaasData.pendingAmount + asaasData.receivedAmount) : data.totalRevenue;
+  const receivedAmount = asaasData ? asaasData.receivedAmount : data.netRevenue;
+  const pendingAmount = asaasData ? asaasData.pendingAmount : 0;
+  const mrr = asaasData ? asaasData.monthlyRevenue : data.mrr;
+  
+  // Usar dados mockados para as porcentagens de mudança por enquanto
+  const mrrChange = data.mrrChange;
+  const revenueChange = data.totalRevenueChange;
+  const receivedChange = data.netRevenueChange;
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-semibold">Dashboard Administrativo</h1>
         <div className="flex items-center gap-4">
           <select
@@ -47,40 +88,57 @@ const AdminDashboard: React.FC = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
-        <StatCard
-          title="MRR"
-          value={data.mrr}
-          change={data.mrrChange}
-          variant="currency"
-          icon={<DollarSign className="text-green-600" size={20} />}
-        />
-        
-        <StatCard
-          title="Receita Total"
-          value={data.totalRevenue}
-          change={data.totalRevenueChange}
-          variant="currency"
-          icon={<TrendingUp className="text-blue-600" size={20} />}
-        />
-        
-        <StatCard
-          title="Receita Líquida"
-          value={data.netRevenue}
-          change={data.netRevenueChange}
-          variant="currency"
-          icon={<DollarSign className="text-indigo-600" size={20} />}
-        />
-        
-        <StatCard
-          title="Taxa de Inadimplência"
-          value={data.defaultRate}
-          change={data.defaultRateChange}
-          variant="percentage"
-          icon={<AlertOctagon className="text-red-600" size={20} />}
-          isInverted={true}
-        />
-      </div>
+      {error && (
+        <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg flex items-center justify-between">
+          <p className="text-yellow-700">{error}</p>
+          <Link to="/admin/settings?tab=integrations">
+            <Button variant="outline" size="sm" className="flex items-center gap-2">
+              <Settings size={16} />
+              Configurar Asaas
+            </Button>
+          </Link>
+        </div>
+      )}
+
+      {loading ? (
+        <div className="flex justify-center items-center h-24">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+          <StatCard
+            title="MRR"
+            value={mrr}
+            change={mrrChange}
+            variant="currency"
+            icon={<DollarSign className="text-green-600" size={20} />}
+          />
+          
+          <StatCard
+            title="Receita Total (A Receber)"
+            value={totalRevenue}
+            change={revenueChange}
+            variant="currency"
+            icon={<TrendingUp className="text-blue-600" size={20} />}
+          />
+          
+          <StatCard
+            title="Receita Recebida"
+            value={receivedAmount}
+            change={receivedChange}
+            variant="currency"
+            icon={<DollarSign className="text-indigo-600" size={20} />}
+          />
+          
+          <StatCard
+            title="Receita Pendente"
+            value={pendingAmount}
+            change={0}
+            variant="currency"
+            icon={<AlertOctagon className="text-yellow-600" size={20} />}
+          />
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
         <div className="lg:col-span-2">
@@ -98,7 +156,7 @@ const AdminDashboard: React.FC = () => {
             <RefreshCcw className="text-green-600" size={20} />
             <h3 className="font-medium">Clientes Ativos</h3>
           </div>
-          <p className="text-2xl font-bold">{data.clientMetrics.activeClients}</p>
+          <p className="text-2xl font-bold">{asaasData?.totalCustomers || data.clientMetrics.activeClients}</p>
           <p className="text-sm text-green-600 mt-1">
             +{data.clientMetrics.activeClientsChange}% esse mês
           </p>
@@ -120,9 +178,9 @@ const AdminDashboard: React.FC = () => {
             <Users className="text-blue-600" size={20} />
             <h3 className="font-medium">Novos Clientes</h3>
           </div>
-          <p className="text-2xl font-bold">{data.clientMetrics.newClients}</p>
+          <p className="text-2xl font-bold">{asaasData?.totalCustomers || data.clientMetrics.activeClients}</p>
           <p className="text-sm text-green-600 mt-1">
-            +{data.clientMetrics.newClientsChange}% esse mês
+            +{data.clientMetrics.activeClientsChange}% esse mês
           </p>
         </Card>
 
