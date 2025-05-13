@@ -2,8 +2,10 @@ import { getAuth } from 'firebase/auth';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 
-// Base URL for Asaas API - usando a URL correta da API
-const ASAAS_API_URL = 'https://sandbox.asaas.com/api/v3';
+// URL do backend proxy (altere para a URL do Railway após o deploy)
+const PROXY_API_URL = window.location.hostname !== 'localhost'
+  ? 'https://maio-convertfy-production.up.railway.app/api-proxy/asaas'
+  : 'http://localhost:3000/api-proxy/asaas';
 
 // Global API key for development/testing
 // In production, this should be stored securely and not in the source code
@@ -115,10 +117,9 @@ export const getAsaasFinancialMetrics = async (apiKey?: string): Promise<AsaasFi
     console.log('Fetching Asaas payments with API key:', apiKey ? 'Key provided' : 'No key');
     console.log('Date range:', firstDayOfMonth, 'to', lastDayOfMonth);
     
-    // Fetch monthly revenue (all payments for the current month)
-    const paymentsResponse = await fetch(`${ASAAS_API_URL}/payments?startDueDate=${firstDayOfMonth}&endDueDate=${lastDayOfMonth}`, {
+    // Fetch monthly revenue (all payments for the current month) via proxy
+    const paymentsResponse = await fetch(`${PROXY_API_URL}/payments?startDueDate=${firstDayOfMonth}&endDueDate=${lastDayOfMonth}&access_token=${encodeURIComponent(apiKey)}`, {
       headers: {
-        'access_token': apiKey,
         'Content-Type': 'application/json'
       }
     });
@@ -171,10 +172,9 @@ export const getAsaasFinancialMetrics = async (apiKey?: string): Promise<AsaasFi
       }
     });
     
-    // Fetch customer count
-    const customersResponse = await fetch(`${ASAAS_API_URL}/customers?limit=1`, {
+    // Fetch customer count via proxy
+    const customersResponse = await fetch(`${PROXY_API_URL}/customers?limit=1&access_token=${encodeURIComponent(apiKey)}`, {
       headers: {
-        'access_token': apiKey,
         'Content-Type': 'application/json'
       }
     });
